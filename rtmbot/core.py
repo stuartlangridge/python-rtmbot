@@ -80,6 +80,10 @@ class RtmBot(object):
             for plugin in self.bot_plugins:
                 plugin.register_jobs()
                 plugin.do(function_name, data)
+        else:
+            self._dbg("got untyped data")
+            for plugin in self.bot_plugins:
+                plugin.do("process_untyped_data", data)
 
     def output(self):
         for plugin in self.bot_plugins:
@@ -110,12 +114,14 @@ class RtmBot(object):
                 logging.info("config found for: " + name)
             plugin_config = self.config.get(name, {})
             plugin_config['DEBUG'] = self.debug
-            self.bot_plugins.append(Plugin(name, plugin_config))
+            self.bot_plugins.append(Plugin(name, self.get_slack_client, plugin_config))
 
+    def get_slack_client(self):
+        return self.slack_client
 
 class Plugin(object):
 
-    def __init__(self, name, plugin_config=None):
+    def __init__(self, name, get_slack_client, plugin_config=None):
         '''
         A plugin in initialized with:
             - name (str)
@@ -133,7 +139,7 @@ class Plugin(object):
         self.register_jobs()
         self.outputs = []
         if 'setup' in dir(self.module):
-            self.module.setup()
+            self.module.setup(get_slack_client)
 
     def register_jobs(self):
         if 'crontable' in dir(self.module):
