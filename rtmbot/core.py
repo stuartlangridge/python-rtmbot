@@ -4,6 +4,7 @@ import glob
 import os
 import time
 import logging
+import traceback
 
 from slackclient import SlackClient
 
@@ -79,11 +80,37 @@ class RtmBot(object):
             self._dbg("got {}".format(function_name))
             for plugin in self.bot_plugins:
                 plugin.register_jobs()
-                plugin.do(function_name, data)
+                try:
+                    plugin.do(function_name, data)
+                except:
+                    handle_error = getattr(plugin.module, "handle_error", None)
+                    if handle_error:
+                        try:
+                            e = sys.exc_info()[0]
+                            handle_error(sys.exc_info())
+                        except:
+                            print "Error in handle_error (original error follows)"
+                            traceback.print_exc()
+                            raise e
+                    else:
+                        raise
         else:
             self._dbg("got untyped data")
             for plugin in self.bot_plugins:
-                plugin.do("process_untyped_data", data)
+                try:
+                    plugin.do("process_untyped_data", data)
+                except Exception as e:
+                    handle_error = getattr(plugin.module, "handle_error", None)
+                    if handle_error:
+                        try:
+                            e = sys.exc_info()[0]
+                            handle_error(sys.exc_info())
+                        except:
+                            print "Error in handle_error (original error follows)"
+                            traceback.print_exc()
+                            raise e
+                    else:
+                        raise
 
     def output(self):
         for plugin in self.bot_plugins:
